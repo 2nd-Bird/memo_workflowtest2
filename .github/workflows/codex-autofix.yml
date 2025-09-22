@@ -1,0 +1,48 @@
+name: Codex AutoFix
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+jobs:
+  autofix:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Codex CLI
+        run: npm i -g @openai/codex
+
+
+      - name: Configure Codex (API key)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_CODEX_API_KEY }}  # ← Secret名は分ける
+        run: |
+          mkdir -p ~/.codex
+          echo 'preferred_auth_method = "apikey"' > ~/.codex/config.toml
+
+
+      - name: Run Codex to fix CI
+        run: |
+          codex exec "Fix CI failures by following AGENTS.md (lint/type/test). Keep changes minimal; add/adjust tests if required."
+          echo "CHANGED=$(git status --porcelain | wc -l)" >> $GITHUB_ENV
+
+      - name: Create PR
+        if: ${{ env.CHANGED != '0' }}
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "Codex AutoFix: CI 修復（汎用）"
+          body: "Codex による自動修復PR。AGENTS.md の規約（最小差分/自己修復最大3回/テスト尊重）に従っています。"
+          branch: "codex/autofix-${{ github.run_id }}"
+          commit-message: "chore: codex autofix (ci green)"

@@ -1,0 +1,13 @@
+# Node/TypeScript
+node_modules/
+dist/
+build/
+.tmp/
+.temp/
+coverage/
+*.log
+*.DS_Store
+
+# Env
+.env
+.env.*
